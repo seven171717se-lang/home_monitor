@@ -4,7 +4,7 @@
   * @file           : main.c
   * @brief          : 家庭环境监测仪 — 主程序
   *   DHT11 温湿度 + 光敏(ADC)光照 → OLED显示 → 自动风扇控制
-  *   → 蜂鸣器/LED报警 → W25Qxx日志记录 → ESP8266 WiFi上报
+  *   → 蜂鸣器/LED报警 → W25Qxx日志记录 → 
   ******************************************************************************
   */
 /* USER CODE END Header */
@@ -18,7 +18,6 @@
 #include "dht11.h"
 #include "motor_l9110s.h"
 #include "w25qxx.h"
-#include "esp8266_at.h"
 #include "buzzer.h"
 #include "light_sensor.h"
 #include <string.h>
@@ -34,7 +33,6 @@
 /* USER CODE BEGIN PD */
 /* 系统配置 */
 #define LOG_INTERVAL_S    60    /* Flash 数据记录间隔（秒） */
-#define WIFI_REPORT_S     30    /* WiFi 上报间隔（秒） */
 #define SENSOR_READ_MS    1200  /* DHT11 读取间隔（毫秒） */
 #define FLASH_CFG_ADDR    0x000000  /* 配置区（扇区0，4KB） */
 #define FLASH_LOG_ADDR    0x001000  /* 日志区（扇区1，4KB） */
@@ -80,13 +78,6 @@ uint8_t  buzzer_beeping = 0;
 /* ── Flash 日志 ── */
 uint32_t log_count = 0;             /* 已记录条数 */
 uint32_t log_tick = 0;
-
-/* ── WiFi ── */
-uint8_t  wifi_ok = 0;
-uint8_t  wifi_step = 0;        /* 0=空闲 1=初始化 2=AT 3=CWMODE 4=CWJAP 5=等待DHCP 6=CIFSR 7=解析 8=完成 */
-uint32_t wifi_tick = 0;
-uint32_t wifi_step_tick = 0;
-char     wifi_ip[16];
 
 /* ── 编码器辅助 ── */
 int32_t  enc_last = 0;
@@ -163,27 +154,12 @@ int main(void)
     if (cfg[1] <= 100)               light_threshold = cfg[1];
   }
 
-  /* ── 4. ESP8266 连接（延迟到主循环后台执行）── */
-  wifi_step = 1;
-  wifi_step_tick = HAL_GetTick();
 
-  /* ── 5. 启动界面 ── */
   OLED_Clear();
   OLED_ShowString(28, 1, "Home Monitor");
   OLED_ShowString(28, 3, "System Ready");
-  {
-      char t[20];
-      if (wifi_ok) sprintf(t, "IP: %s", wifi_ip);
-      else sprintf(t, "WiFi: --");
-      OLED_ShowString((128-strlen(t)*6)/2, 5, t);
-  }
   OLED_Refresh();
   HAL_Delay(1500);
-
-  /* 启动后初始化计时基准，避免 Flash 日志立即触发 */
-  log_tick = HAL_GetTick();
-  sensor_tick = HAL_GetTick();
-  wifi_tick = HAL_GetTick();
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -193,88 +169,6 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-
-    /* ==== WiFi 后台连接（状态机，不阻塞）==== */
-    if (wifi_step > 0 && wifi_step < 8) {
-        switch (wifi_step) {
-        case 1: /* 初始化 */
-            ESP8266_Init();
-            ESP8266_ClearBuf();
-            wifi_ip[0] = 0; wifi_ok = 0;
-            ESP8266_SendCmd("AT+RST\r\n");
-            wifi_step_tick = HAL_GetTick();
-            wifi_step = 2;
-            break;
-        case 2: /* 等待复位完成 */
-            if (HAL_GetTick() - wifi_step_tick >= 3500) {
-                ESP8266_ClearBuf();
-                ESP8266_SendCmd("AT\r\n");
-                wifi_step_tick = HAL_GetTick();
-                wifi_step = 3;
-            }
-            break;
-        case 3: /* 等待 AT OK */
-            if (ESP8266_WaitResp(50) == ESP8266_RESP_OK) {
-                ESP8266_SendCmd("AT+CWMODE=1\r\n");
-                wifi_step_tick = HAL_GetTick();
-                wifi_step = 4;
-            } else if (HAL_GetTick() - wifi_step_tick >= 3000) {
-                wifi_step = 8; /* 超时放弃 */
-            }
-            break;
-        case 4: /* 发送 CWJAP */
-            ESP8266_ClearBuf();
-            ESP8266_SendCmd("AT+CWJAP=\"Xiaomi_0B35\",\"yq1022yb28\"\r\n");
-            wifi_step = 5;
-            wifi_step_tick = HAL_GetTick();
-            break;
-        case 5: /* 等待 CWJAP OK（最长15s）*/
-            if (ESP8266_WaitResp(50) == ESP8266_RESP_OK) {
-                wifi_step = 6;
-                wifi_step_tick = HAL_GetTick();
-            } else if (HAL_GetTick() - wifi_step_tick >= 15000) {
-                wifi_step = 8;
-            }
-            break;
-        case 6: /* 等待 DHCP（3s）*/
-            if (HAL_GetTick() - wifi_step_tick >= 3000) {
-                ESP8266_ClearBuf();
-                ESP8266_SendCmd("AT+CIFSR\r\n");
-                wifi_step = 7;
-                wifi_step_tick = HAL_GetTick();
-            }
-            break;
-        case 7: /* 解析 IP */
-            if (ESP8266_WaitResp(50) == ESP8266_RESP_OK) {
-                char rx[128];
-                uint16_t len = ESP8266_GetRxData(rx, sizeof(rx)-1);
-                rx[len] = 0;
-                char *p = rx;
-                while (*p) {
-                    if (*p >= '0' && *p <= '9') {
-                        uint8_t d=0; char *s=p;
-                        while (*p && ((*p>='0'&&*p<='9')||*p=='.')) { if(*p=='.')d++; p++; }
-                        if (d==3) { uint8_t i=0; while(s<p&&i<15)wifi_ip[i++]=*s++; wifi_ip[i]=0; wifi_ok=1; break; }
-                    } else p++;
-                }
-                if (wifi_ok && strcmp(wifi_ip, "0.0.0.0") == 0) {
-                    wifi_ok = 0; wifi_ip[0] = 0;
-                    wifi_step = 6; /* 重试 */
-                    wifi_step_tick = HAL_GetTick() - 2500;
-                }
-            }
-            if (wifi_ok || HAL_GetTick() - wifi_step_tick >= 3000) {
-                wifi_step = 8;
-            }
-            break;
-        case 8: /* 完成 */
-            ESP8266_ClearBuf();
-            NVIC_DisableIRQ(USART1_IRQn);
-            CLEAR_BIT(huart1.Instance->CR1, USART_CR1_UE);
-            wifi_step = 0;
-            break;
-        }
-    }
 
     /* ==== 传感器采集 ==== */
     if (HAL_GetTick() - sensor_tick >= SENSOR_READ_MS)
@@ -330,8 +224,6 @@ int main(void)
         }
     }
 
-    /* ==== WiFi 存活检测（已关闭UART中断，暂不检测）==== */
-
     /* ==== 按键翻页 ==== */
     {
         uint8_t btn = Encoder_GetButtonPressed();
@@ -352,7 +244,7 @@ int main(void)
     /* ========== Page 0：仪表盘 ========== */
     if (page == 0)
     {
-        char buf[32];
+        char buf[21];
 
         /* 标题栏 — 反色 */
         OLED_FillRect(0, 0, 128, 10, 1);
@@ -391,16 +283,13 @@ int main(void)
 
         /* 底栏分隔 + 状态 */
         OLED_DrawHLine(0, 54, 128, 1);
-        if (wifi_ok)
-            sprintf(buf, "IP:%s         ", wifi_ip);
-        else
-            sprintf(buf, "WiFi:--  Log:%lu", log_count);
+        sprintf(buf, "Log:%lu", log_count);
         OLED_ShowString(0, 7, buf);
     }
     /* ========== Page 1：设置 ========== */
     else if (page == 1)
     {
-        char buf[32];
+        char buf[21];
         EncoderDirection dir = Encoder_GetDirection();
 
         /* 标题栏 */
@@ -458,7 +347,7 @@ int main(void)
     /* ========== Page 2：模式控制 ========== */
     else if (page == 2)
     {
-        char buf[32];
+        char buf[21];
         EncoderDirection dir = Encoder_GetDirection();
 
         /* 标题栏 */
@@ -500,7 +389,7 @@ int main(void)
     /* ========== Page 3：数据日志 ========== */
     else
     {
-        char buf[32];
+        char buf[21];
 
         /* 标题栏 */
         OLED_FillRect(0, 0, 128, 10, 1);
