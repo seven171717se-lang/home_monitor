@@ -168,46 +168,34 @@ int main(void)
   wifi_ok = 0;
 
   /* 复位模块 */
-  ESP8266_SendCmd("AT+RST");
+  ESP8266_SendCmd("AT+RST\r\n");
   HAL_Delay(3000);
   ESP8266_ClearBuf();
 
   /* AT 测试 → Station 模式 → 连 WiFi → 拿 IP */
-  ESP8266_ClearBuf();
-  ESP8266_SendCmd("AT");
+  ESP8266_SendCmd("AT\r\n");
   if (ESP8266_WaitResp(2000) == ESP8266_RESP_OK)
   {
-      ESP8266_ClearBuf();
-      ESP8266_SendCmd("AT+CWMODE=1");
+      ESP8266_SendCmd("AT+CWMODE=1\r\n");
       ESP8266_WaitResp(2000);
       ESP8266_ClearBuf();
-      ESP8266_SendCmd("AT+CWJAP=\"Xiaomi_0B35\",\"yq1022yb28\"");
-      if (ESP8266_WaitResp(15000) == ESP8266_RESP_OK)
+      ESP8266_SendCmd("AT+CWJAP=\"Xiaomi_0B35\",\"yq1022yb28\"\r\n");
+      if (ESP8266_WaitResp(10000) == ESP8266_RESP_OK)
       {
           ESP8266_ClearBuf();
-          ESP8266_SendCmd("AT+CIFSR");
-          ESP8266_WaitResp(3000);
+          ESP8266_SendCmd("AT+CIFSR\r\n");
+          ESP8266_WaitResp(2000);
           {
-              char rx[256];
+              char rx[128];
               uint16_t len = ESP8266_GetRxData(rx, sizeof(rx)-1);
               rx[len] = 0;
-              /* 优先匹配 STAIP 的 IP */
-              char *sta = strstr(rx, "STAIP");
-              if (!sta) sta = strstr(rx, "+CIFSR");
-              if (sta) {
-                  char *q = strchr(sta, '"');
-                  if (q) { q++; char *e = strchr(q, '"'); if (e) { uint8_t i=0; while(q<e&&i<15)wifi_ip[i++]=*q++; wifi_ip[i]=0; wifi_ok=1; } }
-              }
-              /* 回退：全局搜索 xxx.xxx.xxx.xxx */
-              if (!wifi_ok) {
-                  char *p = rx;
-                  while (*p) {
-                      if (*p >= '0' && *p <= '9') {
-                          uint8_t d=0; char *s=p;
-                          while (*p && ((*p>='0'&&*p<='9')||*p=='.')) { if(*p=='.')d++; p++; }
-                          if (d==3) { uint8_t i=0; while(s<p&&i<15)wifi_ip[i++]=*s++; wifi_ip[i]=0; wifi_ok=1; break; }
-                      } else p++;
-                  }
+              char *p = rx;
+              while (*p) {
+                  if (*p >= '0' && *p <= '9') {
+                      uint8_t d=0; char *s=p;
+                      while (*p && ((*p>='0'&&*p<='9')||*p=='.')) { if(*p=='.')d++; p++; }
+                      if (d==3) { uint8_t i=0; while(s<p&&i<15)wifi_ip[i++]=*s++; wifi_ip[i]=0; wifi_ok=1; break; }
+                  } else p++;
               }
           }
       }
@@ -916,11 +904,6 @@ void assert_failed(uint8_t *file, uint32_t line)
   /* USER CODE END 6 */
 }
 #endif /* USE_FULL_ASSERT */
-
-
-
-
-
 
 
 
