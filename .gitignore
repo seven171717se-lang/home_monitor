@@ -1,0 +1,28 @@
+# MDK-ARM build outputs
+*.uvguix.*
+*.uvoptx
+*.o
+*.d
+*.crf
+*.lst
+*.axf
+*.hex
+*.htm
+*.lnp
+*.map
+*.sct
+*.dep
+*.build_log.htm
+build_log.txt
+DebugConfig/
+RTE/
+Listings/
+Objects/
+
+# Editor
+*.bak
+*.orig
+
+# OS
+Thumbs.db
+Desktop.ini
