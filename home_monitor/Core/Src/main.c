@@ -269,7 +269,8 @@ int main(void)
             break;
         case 8: /* 完成 */
             ESP8266_ClearBuf();
-            HAL_UART_DeInit(&huart1);
+            NVIC_DisableIRQ(USART1_IRQn);
+            CLEAR_BIT(huart1.Instance->CR1, USART_CR1_UE);
             wifi_step = 0;
             break;
         }
