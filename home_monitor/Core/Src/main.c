@@ -83,8 +83,10 @@ uint32_t log_tick = 0;
 
 /* ── WiFi ── */
 uint8_t  wifi_ok = 0;
+uint8_t  wifi_step = 0;        /* 0=空闲 1=初始化 2=AT 3=CWMODE 4=CWJAP 5=等待DHCP 6=CIFSR 7=解析 8=完成 */
 uint32_t wifi_tick = 0;
-char     wifi_ip[16];       /* e.g. "192.168.1.100" */
+uint32_t wifi_step_tick = 0;
+char     wifi_ip[16];
 
 /* ── 编码器辅助 ── */
 int32_t  enc_last = 0;
@@ -161,63 +163,9 @@ int main(void)
     if (cfg[1] <= 100)               light_threshold = cfg[1];
   }
 
-  /* ── 4. ESP8266 连接 ── */
-  ESP8266_Init();
-  ESP8266_ClearBuf();
-  wifi_ip[0] = 0;
-  wifi_ok = 0;
-
-  /* 复位模块 */
-  ESP8266_SendCmd("AT+RST\r\n");
-  HAL_Delay(3000);
-  ESP8266_ClearBuf();
-
-  /* AT 测试 → Station 模式 → 连 WiFi → 拿 IP */
-  ESP8266_SendCmd("AT\r\n");
-  if (ESP8266_WaitResp(2000) == ESP8266_RESP_OK)
-  {
-      ESP8266_SendCmd("AT+CWMODE=1\r\n");
-      ESP8266_WaitResp(2000);
-      ESP8266_ClearBuf();
-      ESP8266_SendCmd("AT+CWJAP=\"Xiaomi_0B35\",\"yq1022yb28\"\r\n");
-      if (ESP8266_WaitResp(10000) == ESP8266_RESP_OK)
-      {
-          HAL_Delay(3000);  /* 等待 DHCP 分配 IP */
-          ESP8266_ClearBuf();
-          ESP8266_SendCmd("AT+CIFSR\r\n");
-          ESP8266_WaitResp(2000);
-          {
-              char rx[128];
-              uint16_t len = ESP8266_GetRxData(rx, sizeof(rx)-1);
-              rx[len] = 0;
-              /* 提取 IP，如果 0.0.0.0 则重试一次 */
-              uint8_t retry = 2;
-              while (retry--) {
-                  char *p = rx;
-                  while (*p) {
-                      if (*p >= '0' && *p <= '9') {
-                          uint8_t d=0; char *s=p;
-                          while (*p && ((*p>='0'&&*p<='9')||*p=='.')) { if(*p=='.')d++; p++; }
-                          if (d==3) { uint8_t i=0; while(s<p&&i<15)wifi_ip[i++]=*s++; wifi_ip[i]=0; wifi_ok=1; break; }
-                      } else p++;
-                  }
-                  if (wifi_ok && strcmp(wifi_ip, "0.0.0.0") == 0) {
-                      wifi_ok = 0; wifi_ip[0] = 0;
-                      HAL_Delay(2000);
-                      ESP8266_ClearBuf();
-                      ESP8266_SendCmd("AT+CIFSR\r\n");
-                      ESP8266_WaitResp(2000);
-                      len = ESP8266_GetRxData(rx, sizeof(rx)-1);
-                      rx[len] = 0;
-                  } else break;
-              }
-          }
-      }
-  }
-  ESP8266_ClearBuf();
-
-  /* WiFi 已完成，彻底关闭 USART1 避免干扰时序敏感外设 */
-  HAL_UART_DeInit(&huart1);
+  /* ── 4. ESP8266 连接（延迟到主循环后台执行）── */
+  wifi_step = 1;
+  wifi_step_tick = HAL_GetTick();
 
   /* ── 5. 启动界面 ── */
   OLED_Clear();
@@ -245,6 +193,86 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+
+    /* ==== WiFi 后台连接（状态机，不阻塞）==== */
+    if (wifi_step > 0 && wifi_step < 8 && HAL_GetTick() - wifi_step_tick >= 100) {
+        wifi_step_tick = HAL_GetTick();
+        switch (wifi_step) {
+        case 1: /* 初始化 */
+            ESP8266_Init();
+            ESP8266_ClearBuf();
+            wifi_ip[0] = 0; wifi_ok = 0;
+            ESP8266_SendCmd("AT+RST\r\n");
+            wifi_step_tick = HAL_GetTick();
+            wifi_step = 2;
+            break;
+        case 2: /* 等待复位完成 */
+            if (HAL_GetTick() - wifi_step_tick >= 3500) {
+                ESP8266_ClearBuf();
+                ESP8266_SendCmd("AT\r\n");
+                wifi_step = 3;
+            }
+            break;
+        case 3: /* 等待 AT OK */
+            if (ESP8266_WaitResp(50) == ESP8266_RESP_OK) {
+                ESP8266_SendCmd("AT+CWMODE=1\r\n");
+                wifi_step = 4;
+            } else if (HAL_GetTick() - wifi_step_tick >= 3000) {
+                wifi_step = 8; /* 超时放弃 */
+            }
+            break;
+        case 4: /* 发送 CWJAP */
+            ESP8266_ClearBuf();
+            ESP8266_SendCmd("AT+CWJAP=\"Xiaomi_0B35\",\"yq1022yb28\"\r\n");
+            wifi_step = 5;
+            wifi_step_tick = HAL_GetTick();
+            break;
+        case 5: /* 等待 CWJAP OK（最长15s）*/
+            if (ESP8266_WaitResp(50) == ESP8266_RESP_OK) {
+                wifi_step = 6;
+                wifi_step_tick = HAL_GetTick();
+            } else if (HAL_GetTick() - wifi_step_tick >= 15000) {
+                wifi_step = 8;
+            }
+            break;
+        case 6: /* 等待 DHCP（3s）*/
+            if (HAL_GetTick() - wifi_step_tick >= 3000) {
+                ESP8266_ClearBuf();
+                ESP8266_SendCmd("AT+CIFSR\r\n");
+                wifi_step = 7;
+                wifi_step_tick = HAL_GetTick();
+            }
+            break;
+        case 7: /* 解析 IP */
+            if (ESP8266_WaitResp(50) == ESP8266_RESP_OK) {
+                char rx[128];
+                uint16_t len = ESP8266_GetRxData(rx, sizeof(rx)-1);
+                rx[len] = 0;
+                char *p = rx;
+                while (*p) {
+                    if (*p >= '0' && *p <= '9') {
+                        uint8_t d=0; char *s=p;
+                        while (*p && ((*p>='0'&&*p<='9')||*p=='.')) { if(*p=='.')d++; p++; }
+                        if (d==3) { uint8_t i=0; while(s<p&&i<15)wifi_ip[i++]=*s++; wifi_ip[i]=0; wifi_ok=1; break; }
+                    } else p++;
+                }
+                if (wifi_ok && strcmp(wifi_ip, "0.0.0.0") == 0) {
+                    wifi_ok = 0; wifi_ip[0] = 0;
+                    wifi_step = 6; /* 重试 */
+                    wifi_step_tick = HAL_GetTick() - 2500;
+                }
+            }
+            if (wifi_ok || HAL_GetTick() - wifi_step_tick >= 3000) {
+                wifi_step = 8;
+            }
+            break;
+        case 8: /* 完成 */
+            ESP8266_ClearBuf();
+            HAL_UART_DeInit(&huart1);
+            wifi_step = 0;
+            break;
+        }
+    }
 
     /* ==== 传感器采集 ==== */
     if (HAL_GetTick() - sensor_tick >= SENSOR_READ_MS)
