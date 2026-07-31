@@ -352,7 +352,7 @@ int main(void)
     /* ========== Page 0：仪表盘 ========== */
     if (page == 0)
     {
-        char buf[21];
+        char buf[32];
 
         /* 标题栏 — 反色 */
         OLED_FillRect(0, 0, 128, 10, 1);
@@ -400,7 +400,7 @@ int main(void)
     /* ========== Page 1：设置 ========== */
     else if (page == 1)
     {
-        char buf[21];
+        char buf[32];
         EncoderDirection dir = Encoder_GetDirection();
 
         /* 标题栏 */
@@ -458,7 +458,7 @@ int main(void)
     /* ========== Page 2：模式控制 ========== */
     else if (page == 2)
     {
-        char buf[21];
+        char buf[32];
         EncoderDirection dir = Encoder_GetDirection();
 
         /* 标题栏 */
@@ -500,7 +500,7 @@ int main(void)
     /* ========== Page 3：数据日志 ========== */
     else
     {
-        char buf[21];
+        char buf[32];
 
         /* 标题栏 */
         OLED_FillRect(0, 0, 128, 10, 1);
