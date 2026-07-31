@@ -1,4 +1,4 @@
-# Home Monitor — 家庭环境监测仪
+﻿# Home Monitor — 家庭环境监测仪
 
 基于 STM32F103C8T6 + HAL 库的多传感器环境监测系统，OLED 菜单交互，自动温控风扇，Flash 日志存储。
 
@@ -45,8 +45,8 @@
 | 页面 | 功能 |
 |---|---|
 | Page 0 — HOME MONITOR | 仪表盘：温度、湿度、光照、风扇转速、报警状态、日志条数 |
-| Page 1 — SETTINGS | 温度阈值(20~50°C)、光照阈值(10~100%)、控制模式、保存到 Flash |
-| Page 2 — MODE | AUTO/MANUAL 切换，手动调速 0~100% |
+| Page 1 — SETTINGS | 温度阈值(20-50°C)、光照阈值(10-100%)、控制模式、保存到 Flash |
+| Page 2 — MODE | AUTO/MANUAL 切换，手动调速 0-100% |
 | Page 3 — DATA LOG | 日志条数，最新/最早记录（温度、湿度、光照） |
 
 ## 自动控制逻辑
