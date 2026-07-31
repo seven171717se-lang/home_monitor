@@ -1,10 +1,10 @@
-﻿/* USER CODE BEGIN Header */
+/* USER CODE BEGIN Header */
 /**
   ******************************************************************************
   * @file           : main.c
-  * @brief          : 家庭环境监测仪 — 主程序
-  *   DHT11 温湿度 + 光敏(ADC)光照 → OLED显示 → 自动风扇控制
-  *   → 蜂鸣器/LED报警 → W25Qxx日志记录 → 
+  * @brief          : 家庭环境监测�? �? 主程�?
+  *   DHT11 温湿�? + 光敏(ADC)光照 �? OLED显示 �? 自动风扇控制
+  *   �? 蜂鸣�?/LED报警 �? W25Qxx日志记录 �? 
   ******************************************************************************
   */
 /* USER CODE END Header */
@@ -32,12 +32,12 @@
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 /* 系统配置 */
-#define LOG_INTERVAL_S    60    /* Flash 数据记录间隔（秒） */
+#define LOG_INTERVAL_S    60    /* Flash 数据记录间隔（秒�? */
 #define SENSOR_READ_MS    1200  /* DHT11 读取间隔（毫秒） */
-#define FLASH_CFG_ADDR    0x000000  /* 配置区（扇区0，4KB） */
-#define FLASH_LOG_ADDR    0x001000  /* 日志区（扇区1，4KB） */
+#define FLASH_CFG_ADDR    0x000000  /* 配置区（扇区0�?4KB�? */
+#define FLASH_LOG_ADDR    0x001000  /* 日志区（扇区1�?4KB�? */
 #define FLASH_LOG_SIZE    4096
-/* 每条日志 8 字节：温度(1) + 湿度(1) + 光照(1) + 风扇(1) + 序列号(2) + 标志(1) + 保留(1) */
+/* 每条日志 8 字节：温�?(1) + 湿度(1) + 光照(1) + 风扇(1) + 序列�?(2) + 标志(1) + 保留(1) */
 #define LOG_ENTRY_SIZE    8
 /* USER CODE END PD */
 
@@ -48,26 +48,28 @@
 
 /* Private variables ---------------------------------------------------------*/
 ADC_HandleTypeDef hadc1;
+
 I2C_HandleTypeDef hi2c1;
+
 SPI_HandleTypeDef hspi2;
+
 TIM_HandleTypeDef htim3;
 TIM_HandleTypeDef htim4;
-UART_HandleTypeDef huart1;
 
 /* USER CODE BEGIN PV */
-/* ── 传感器数据 ── */
+/* �?�? 传感器数�? �?�? */
 uint8_t  dht_temp = 0, dht_hum = 0, dht_ok = 0;
-uint8_t  light_level = 0;           /* B2K 电位器 → 光照 0~100% */
+uint8_t  light_level = 0;           /* B2K 电位�? �? 光照 0~100% */
 uint32_t sensor_tick = 0;
 
-/* ── 控制状态 ── */
-uint8_t  page = 0;                  /* 0=仪表盘 1=设置 2=日志 */
+/* �?�? 控制状�?? �?�? */
+uint8_t  page = 0;                  /* 0=仪表�? 1=设置 2=日志 */
 uint8_t  manual_mode = 0;           /* 0=自动 1=手动 */
 uint8_t  motor_speed = 0;
-uint8_t  temp_threshold = 30;       /* 温度报警阈值 */
-uint8_t  light_threshold = 80;      /* 光照报警阈值 */
+uint8_t  temp_threshold = 30;       /* 温度报警阈�?? */
+uint8_t  light_threshold = 80;      /* 光照报警阈�?? */
 
-/* ── 报警状态 ── */
+/* �?�? 报警状�?? �?�? */
 uint8_t  alarm_temp = 0;            /* 温度告警 */
 uint8_t  alarm_light = 0;           /* 强光告警 */
 uint32_t alarm_tick = 0;
@@ -75,14 +77,14 @@ uint8_t  alarm_blink = 0;
 uint32_t buzzer_tick = 0;
 uint8_t  buzzer_beeping = 0;
 
-/* ── Flash 日志 ── */
-uint32_t log_count = 0;             /* 已记录条数 */
+/* �?�? Flash 日志 �?�? */
+uint32_t log_count = 0;             /* 已记录条�? */
 uint32_t log_tick = 0;
 
-/* ── 编码器辅助 ── */
+/* �?�? 编码器辅�? �?�? */
 int32_t  enc_last = 0;
-uint8_t  set_item = 0;   /* 设置页: 0=调节 1=模式 2=保存 */
-uint8_t  set_focus = 0;  /* 0=调温度 1=调光照 */
+uint8_t  set_item = 0;   /* 设置�?: 0=调节 1=模式 2=保存 */
+uint8_t  set_focus = 0;  /* 0=调温�? 1=调光�? */
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -93,7 +95,6 @@ static void MX_I2C1_Init(void);
 static void MX_SPI2_Init(void);
 static void MX_TIM3_Init(void);
 static void MX_TIM4_Init(void);
-static void MX_USART1_UART_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -109,14 +110,21 @@ static void MX_USART1_UART_Init(void);
   */
 int main(void)
 {
+
   /* USER CODE BEGIN 1 */
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
+
+  /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
   HAL_Init();
+
   /* USER CODE BEGIN Init */
   /* USER CODE END Init */
+
+  /* Configure the system clock */
   SystemClock_Config();
+
   /* USER CODE BEGIN SysInit */
   /* USER CODE END SysInit */
 
@@ -127,10 +135,8 @@ int main(void)
   MX_SPI2_Init();
   MX_TIM3_Init();
   MX_TIM4_Init();
-  MX_USART1_UART_Init();
-
   /* USER CODE BEGIN 2 */
-  /* ── 1. 显示屏启动 ── */
+  /* �?�? 1. 显示屏启�? �?�? */
   OLED_Init();
   OLED_Clear();
   OLED_ShowString(28, 0, "Home Monitor");
@@ -138,7 +144,7 @@ int main(void)
   OLED_Refresh();
   HAL_Delay(800);
 
-  /* ── 2. 初始化所有外设 ── */
+  /* �?�? 2. 初始化所有外�? �?�? */
   Buzzer_Init();
   Encoder_Init();
   Motor_Init();
@@ -146,7 +152,7 @@ int main(void)
   LightSensor_Init();
   DHT11_Init();
 
-  /* ── 3. 从 Flash 加载设置 ── */
+  /* �?�? 3. �? Flash 加载设置 �?�? */
   {
     uint8_t cfg[2] = {0};
     W25Q_Read(FLASH_CFG_ADDR, cfg, 2);
@@ -170,7 +176,7 @@ int main(void)
 
     /* USER CODE BEGIN 3 */
 
-    /* ==== 传感器采集 ==== */
+    /* ==== 传感器采�? ==== */
     if (HAL_GetTick() - sensor_tick >= SENSOR_READ_MS)
     {
         sensor_tick = HAL_GetTick();
@@ -246,13 +252,13 @@ int main(void)
     {
         char buf[21];
 
-        /* 标题栏 — 反色 */
+        /* 标题�? �? 反色 */
         OLED_FillRect(0, 0, 128, 10, 1);
         OLED_InvertArea(0, 0, 128, 10);
         OLED_ShowString(28, 0, "HOME MONITOR");
         OLED_DrawHLine(0, 10, 128, 1);
 
-        /* 温湿度 */
+        /* 温湿�? */
         if (dht_ok)
             sprintf(buf, "T:%2dC  H:%2d%%", dht_temp, dht_hum);
         else
@@ -268,7 +274,7 @@ int main(void)
         OLED_ShowString(0, 4, buf);
 
 
-        /* 报警状态 */
+        /* 报警状�?? */
         if (alarm_temp || alarm_light)
         {
             sprintf(buf, "!! %s%s !!",
@@ -281,18 +287,18 @@ int main(void)
             OLED_ShowString(0, 5, "Status: Normal");
         }
 
-        /* 底栏分隔 + 状态 */
+        /* 底栏分隔 + 状�?? */
         OLED_DrawHLine(0, 54, 128, 1);
         sprintf(buf, "Log:%lu", log_count);
         OLED_ShowString(0, 7, buf);
     }
-    /* ========== Page 1：设置 ========== */
+    /* ========== Page 1：设�? ========== */
     else if (page == 1)
     {
         char buf[21];
         EncoderDirection dir = Encoder_GetDirection();
 
-        /* 标题栏 */
+        /* 标题�? */
         OLED_FillRect(0, 0, 128, 10, 1);
         OLED_InvertArea(0, 0, 128, 10);
         OLED_ShowString(40, 0, "SETTINGS");
@@ -301,7 +307,7 @@ int main(void)
         switch (set_item)
         {
         case 0:
-            /* 温度+光照 — 按键切换焦点 */
+            /* 温度+光照 �? 按键切换焦点 */
             if (set_focus == 0)
             {
                 if (dir == ENCODER_DIR_CW  && temp_threshold < 50) temp_threshold++;
@@ -344,13 +350,13 @@ int main(void)
         OLED_DrawHLine(0, 54, 128, 1);
         OLED_ShowString(0, 7, "Btn:next Turn:adj");
     }
-    /* ========== Page 2：模式控制 ========== */
+    /* ========== Page 2：模式控�? ========== */
     else if (page == 2)
     {
         char buf[21];
         EncoderDirection dir = Encoder_GetDirection();
 
-        /* 标题栏 */
+        /* 标题�? */
         OLED_FillRect(0, 0, 128, 10, 1);
         OLED_InvertArea(0, 0, 128, 10);
         OLED_ShowString(40, 0, "  MODE  ");
@@ -361,13 +367,13 @@ int main(void)
 
         if (dir != ENCODER_DIR_NONE && !manual_mode)
         {
-            /* 自动模式下旋转 → 切到手动 */
+            /* 自动模式下旋�? �? 切到手动 */
             manual_mode = 1;
         }
 
         if (manual_mode)
         {
-            /* 手动模式：旋转调速 */
+            /* 手动模式：旋转调�? */
             OLED_ShowString(0, 4, "Fan Speed:");
             if (dir == ENCODER_DIR_CW  && motor_speed < 100) motor_speed += 5;
             if (dir == ENCODER_DIR_CCW && motor_speed > 0)   motor_speed -= 5;
@@ -386,12 +392,12 @@ int main(void)
         OLED_DrawHLine(0, 54, 128, 1);
         OLED_ShowString(0, 7, "Turn:adj Btn:next");
     }
-    /* ========== Page 3：数据日志 ========== */
+    /* ========== Page 3：数据日�? ========== */
     else
     {
         char buf[21];
 
-        /* 标题栏 */
+        /* 标题�? */
         OLED_FillRect(0, 0, 128, 10, 1);
         OLED_InvertArea(0, 0, 128, 10);
         OLED_ShowString(40, 0, "DATA LOG");
@@ -402,7 +408,7 @@ int main(void)
 
         if (log_count > 0)
         {
-            /* 最新一条 */
+            /* �?新一�? */
             uint32_t addr = FLASH_LOG_ADDR + (log_count - 1) * LOG_ENTRY_SIZE;
             uint8_t entry[LOG_ENTRY_SIZE];
             W25Q_Read(addr, entry, LOG_ENTRY_SIZE);
@@ -414,7 +420,7 @@ int main(void)
                     entry[2]);
             OLED_ShowString(0, 4, buf);
 
-            /* 最早一条 */
+            /* �?早一�? */
             addr = FLASH_LOG_ADDR;
             W25Q_Read(addr, entry, LOG_ENTRY_SIZE);
 
@@ -440,6 +446,10 @@ int main(void)
   /* USER CODE END 3 */
 }
 
+/**
+  * @brief System Clock Configuration
+  * @retval None
+  */
 void SystemClock_Config(void)
 {
   RCC_OscInitTypeDef RCC_OscInitStruct = {0};
@@ -714,39 +724,6 @@ static void MX_TIM4_Init(void)
 }
 
 /**
-  * @brief USART1 Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_USART1_UART_Init(void)
-{
-
-  /* USER CODE BEGIN USART1_Init 0 */
-
-  /* USER CODE END USART1_Init 0 */
-
-  /* USER CODE BEGIN USART1_Init 1 */
-
-  /* USER CODE END USART1_Init 1 */
-  huart1.Instance = USART1;
-  huart1.Init.BaudRate = 115200;
-  huart1.Init.WordLength = UART_WORDLENGTH_8B;
-  huart1.Init.StopBits = UART_STOPBITS_1;
-  huart1.Init.Parity = UART_PARITY_NONE;
-  huart1.Init.Mode = UART_MODE_TX_RX;
-  huart1.Init.HwFlowCtl = UART_HWCONTROL_NONE;
-  huart1.Init.OverSampling = UART_OVERSAMPLING_16;
-  if (HAL_UART_Init(&huart1) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN USART1_Init 2 */
-
-  /* USER CODE END USART1_Init 2 */
-
-}
-
-/**
   * @brief GPIO Initialization Function
   * @param None
   * @retval None
@@ -845,44 +822,3 @@ void assert_failed(uint8_t *file, uint32_t line)
   /* USER CODE END 6 */
 }
 #endif /* USE_FULL_ASSERT */
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

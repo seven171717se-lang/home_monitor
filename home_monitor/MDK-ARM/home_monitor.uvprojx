@@ -421,11 +421,6 @@
               <FilePath>..\Core\Src\w25qxx.c</FilePath>
             </File>
             <File>
-              <FileName>esp8266_at.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\Core\Src\esp8266_at.c</FilePath>
-            </File>
-            <File>
               <FileName>buzzer.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\Core\Src\buzzer.c</FilePath>
@@ -454,11 +449,6 @@
               <FileName>w25qxx.h</FileName>
               <FileType>5</FileType>
               <FilePath>..\Core\Inc\w25qxx.h</FilePath>
-            </File>
-            <File>
-              <FileName>esp8266_at.h</FileName>
-              <FileType>5</FileType>
-              <FilePath>..\Core\Inc\esp8266_at.h</FilePath>
             </File>
             <File>
               <FileName>buzzer.h</FileName>
@@ -574,11 +564,6 @@
               <FileName>stm32f1xx_hal_tim_ex.c</FileName>
               <FileType>1</FileType>
               <FilePath>../Drivers/STM32F1xx_HAL_Driver/Src/stm32f1xx_hal_tim_ex.c</FilePath>
-            </File>
-            <File>
-              <FileName>stm32f1xx_hal_uart.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>../Drivers/STM32F1xx_HAL_Driver/Src/stm32f1xx_hal_uart.c</FilePath>
             </File>
           </Files>
         </Group>
