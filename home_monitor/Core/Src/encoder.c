@@ -22,8 +22,7 @@ void Encoder_Init(void)
     /* 启动编码器模式计数 */
     HAL_TIM_Encoder_Start(&htim3, TIM_CHANNEL_ALL);
 
-    /* 确保 EXTI0 中断已使能（MX_GPIO_Init 已配好 PB0）*/
-    HAL_NVIC_SetPriority(EXTI0_IRQn, 15, 0);
+    /* EXTI0 优先级由 MX_GPIO_Init 设为 0（最高），不再覆盖 */
     HAL_NVIC_EnableIRQ(EXTI0_IRQn);
 }
 

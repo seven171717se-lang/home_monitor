@@ -226,6 +226,11 @@ int main(void)
   }
   OLED_Refresh();
   HAL_Delay(1500);
+
+  /* 启动后初始化计时基准，避免 Flash 日志立即触发 */
+  log_tick = HAL_GetTick();
+  sensor_tick = HAL_GetTick();
+  wifi_tick = HAL_GetTick();
   /* USER CODE END 2 */
 
   /* Infinite loop */
