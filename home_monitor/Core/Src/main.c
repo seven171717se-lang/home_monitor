@@ -1,4 +1,4 @@
-/* USER CODE BEGIN Header */
+﻿/* USER CODE BEGIN Header */
 /**
   ******************************************************************************
   * @file           : main.c
@@ -195,8 +195,7 @@ int main(void)
     /* USER CODE BEGIN 3 */
 
     /* ==== WiFi 后台连接（状态机，不阻塞）==== */
-    if (wifi_step > 0 && wifi_step < 8 && HAL_GetTick() - wifi_step_tick >= 100) {
-        wifi_step_tick = HAL_GetTick();
+    if (wifi_step > 0 && wifi_step < 8) {
         switch (wifi_step) {
         case 1: /* 初始化 */
             ESP8266_Init();
@@ -210,12 +209,14 @@ int main(void)
             if (HAL_GetTick() - wifi_step_tick >= 3500) {
                 ESP8266_ClearBuf();
                 ESP8266_SendCmd("AT\r\n");
+                wifi_step_tick = HAL_GetTick();
                 wifi_step = 3;
             }
             break;
         case 3: /* 等待 AT OK */
             if (ESP8266_WaitResp(50) == ESP8266_RESP_OK) {
                 ESP8266_SendCmd("AT+CWMODE=1\r\n");
+                wifi_step_tick = HAL_GetTick();
                 wifi_step = 4;
             } else if (HAL_GetTick() - wifi_step_tick >= 3000) {
                 wifi_step = 8; /* 超时放弃 */
