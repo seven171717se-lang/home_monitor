@@ -182,6 +182,7 @@ int main(void)
       ESP8266_SendCmd("AT+CWJAP=\"Xiaomi_0B35\",\"yq1022yb28\"\r\n");
       if (ESP8266_WaitResp(10000) == ESP8266_RESP_OK)
       {
+          HAL_Delay(3000);  /* 等待 DHCP 分配 IP */
           ESP8266_ClearBuf();
           ESP8266_SendCmd("AT+CIFSR\r\n");
           ESP8266_WaitResp(2000);
@@ -189,13 +190,26 @@ int main(void)
               char rx[128];
               uint16_t len = ESP8266_GetRxData(rx, sizeof(rx)-1);
               rx[len] = 0;
-              char *p = rx;
-              while (*p) {
-                  if (*p >= '0' && *p <= '9') {
-                      uint8_t d=0; char *s=p;
-                      while (*p && ((*p>='0'&&*p<='9')||*p=='.')) { if(*p=='.')d++; p++; }
-                      if (d==3) { uint8_t i=0; while(s<p&&i<15)wifi_ip[i++]=*s++; wifi_ip[i]=0; wifi_ok=1; break; }
-                  } else p++;
+              /* 提取 IP，如果 0.0.0.0 则重试一次 */
+              uint8_t retry = 2;
+              while (retry--) {
+                  char *p = rx;
+                  while (*p) {
+                      if (*p >= '0' && *p <= '9') {
+                          uint8_t d=0; char *s=p;
+                          while (*p && ((*p>='0'&&*p<='9')||*p=='.')) { if(*p=='.')d++; p++; }
+                          if (d==3) { uint8_t i=0; while(s<p&&i<15)wifi_ip[i++]=*s++; wifi_ip[i]=0; wifi_ok=1; break; }
+                      } else p++;
+                  }
+                  if (wifi_ok && strcmp(wifi_ip, "0.0.0.0") == 0) {
+                      wifi_ok = 0; wifi_ip[0] = 0;
+                      HAL_Delay(2000);
+                      ESP8266_ClearBuf();
+                      ESP8266_SendCmd("AT+CIFSR\r\n");
+                      ESP8266_WaitResp(2000);
+                      len = ESP8266_GetRxData(rx, sizeof(rx)-1);
+                      rx[len] = 0;
+                  } else break;
               }
           }
       }
