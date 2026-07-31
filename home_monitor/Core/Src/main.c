@@ -240,7 +240,9 @@ int main(void)
     if (HAL_GetTick() - sensor_tick >= SENSOR_READ_MS)
     {
         sensor_tick = HAL_GetTick();
+        NVIC_DisableIRQ(USART1_IRQn);
         { uint8_t t_dec=0, h_dec=0; dht_ok = (DHT11_Read_Data(&dht_temp,&t_dec,&dht_hum,&h_dec)==0); }
+        NVIC_EnableIRQ(USART1_IRQn);
         light_level = LightSensor_GetPercent();
     }
 
