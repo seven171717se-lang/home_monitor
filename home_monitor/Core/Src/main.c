@@ -214,7 +214,12 @@ int main(void)
           }
       }
   }
-  ESP8266_ClearBuf();/* ── 5. 启动界面 ── */
+  ESP8266_ClearBuf();
+
+  /* WiFi 已连接，关闭 USART1 RX 中断，避免干扰 DHT11 等时序敏感操作 */
+  HAL_NVIC_DisableIRQ(USART1_IRQn);
+
+  /* ── 5. 启动界面 ── */
   OLED_Clear();
   OLED_ShowString(28, 1, "Home Monitor");
   OLED_ShowString(28, 3, "System Ready");
@@ -245,9 +250,7 @@ int main(void)
     if (HAL_GetTick() - sensor_tick >= SENSOR_READ_MS)
     {
         sensor_tick = HAL_GetTick();
-        NVIC_DisableIRQ(USART1_IRQn);
         { uint8_t t_dec=0, h_dec=0; dht_ok = (DHT11_Read_Data(&dht_temp,&t_dec,&dht_hum,&h_dec)==0); }
-        NVIC_EnableIRQ(USART1_IRQn);
         light_level = LightSensor_GetPercent();
     }
 
@@ -297,9 +300,7 @@ int main(void)
         }
     }
 
-    /* ==== WiFi 存活检测 ==== */
-    if (wifi_ok && HAL_GetTick()-wifi_tick>=60000UL)
-    { wifi_tick=HAL_GetTick(); if (!ESP8266_ATReady()) { wifi_ok=0; wifi_ip[0]=0; } }
+    /* ==== WiFi 存活检测（已关闭UART中断，暂不检测）==== */
 
     /* ==== 按键翻页 ==== */
     {
