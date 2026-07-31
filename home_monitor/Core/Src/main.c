@@ -216,8 +216,8 @@ int main(void)
   }
   ESP8266_ClearBuf();
 
-  /* WiFi 已连接，关闭 USART1 RX 中断，避免干扰 DHT11 等时序敏感操作 */
-  HAL_NVIC_DisableIRQ(USART1_IRQn);
+  /* WiFi 已完成，彻底关闭 USART1 避免干扰时序敏感外设 */
+  HAL_UART_DeInit(&huart1);
 
   /* ── 5. 启动界面 ── */
   OLED_Clear();
